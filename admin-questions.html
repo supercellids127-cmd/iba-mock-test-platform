@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manage Questions — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .admin-topbar { background: var(--navy); color: var(--white); padding: 14px 0; }
+  .admin-topbar-inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .admin-topbar a.brand { color: var(--white); font-weight: 800; font-size: 15px; text-decoration: none; }
+  .admin-topbar .tabs { display: flex; gap: 4px; }
+  .admin-topbar .tabs a { color: #CBD5E1; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 6px; text-decoration: none; }
+  .admin-topbar .tabs a.active, .admin-topbar .tabs a:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+  .admin-topbar .out { color: #FCA5A5; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+  .page-header { padding: 28px 0 16px; }
+  .page-header .back { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+  .page-header h1 { font-size: 22px; margin: 6px 0 2px; }
+  .page-header p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+  .toolbar { display: flex; gap: 8px; margin: 18px 0; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-tabs .tab { padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 600; background: var(--white); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; }
+  .filter-tabs .tab.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+  .q-row { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start; }
+  .q-row .qnum { font-size: 12px; color: var(--text-muted); font-weight: 700; width: 28px; flex-shrink: 0; padding-top: 3px; }
+  .q-row .qbody { flex: 1; min-width: 0; }
+  .q-row .qtext { font-size: 14px; margin-bottom: 6px; }
+  .q-row .qopts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 14px; font-size: 12.5px; color: var(--text-muted); margin-bottom: 6px; }
+  .q-row .qopts .correct { color: var(--success); font-weight: 700; }
+  .q-row .qtags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-row .qactions { display: flex; gap: 6px; flex-shrink: 0; }
+  .q-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 60px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 30px 20px; overflow-y: auto; }
+  .modal-box { background: var(--white); border-radius: var(--radius); padding: 28px; max-width: 620px; width: 100%; margin: auto; }
+  .modal-box.wide { max-width: 720px; }
+  .modal-box h3 { font-size: 17px; margin-bottom: 18px; }
+  .modal-box .field { margin-bottom: 14px; }
+  .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .opt-field label { display: flex; align-items: center; gap: 6px; }
+  textarea#impText { width: 100%; font-family: var(--font-mono); font-size: 12.5px; min-height: 220px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); resize: vertical; }
+</style>
+</head>
+<body>
+
+<div class="admin-topbar">
+  <div class="admin-topbar-inner">
+    <a href="admin-dashboard.html" class="brand">IBA Admin</a>
+    <div class="tabs">
+      <a href="admin-dashboard.html" class="active">Mock Tests</a>
+      <a href="admin-students.html">Students</a>
+      <a href="admin-attempts.html">Attempts</a>
+    </div>
+    <div class="flex items-center gap-16">
+      <a href="index.html" style="color:#CBD5E1; font-size:13px; text-decoration:none;">View site</a>
+      <a href="#" class="out" id="signOutLink">Sign out</a>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <div class="page-header">
+    <a href="admin-dashboard.html" class="back">← Back to mock tests</a>
+    <h1 id="testTitle">Loading…</h1>
+    <p id="testMeta"></p>
+  </div>
+
+  <div class="toolbar">
+    <div class="filter-tabs" id="filterTabs">
+      <div class="tab active" data-filter="ALL">All</div>
+      <div class="tab" data-filter="ENGLISH">English</div>
+      <div class="tab" data-filter="MATHEMATICS">Mathematics</div>
+      <div class="tab" data-filter="ANALYTICAL">Analytical</div>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn btn-secondary" id="importBtn">Bulk import</button>
+      <button class="btn btn-primary" id="addBtn">+ Add question</button>
+    </div>
+  </div>
+
+  <div id="qList" class="q-list">
+    <div class="state-block"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>
+</main>
+
+<div id="modalMount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="api.js"></script>
+<script src="admin-api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const profile = await requireAdmin();
+  if (!profile) return;
+
+  document.getElementById("signOutLink").addEventListener("click", (e) => { e.preventDefault(); signOut(); });
+
+  const params = new URLSearchParams(location.search);
+  const testId = params.get("testId");
+  const qListEl = document.getElementById("qList");
+
+  if (!testId) {
+    qListEl.innerHTML = `<div class="state-block card"><h3>No test specified</h3><a href="admin-dashboard.html" class="btn btn-secondary">Back to mock tests</a></div>`;
+    throw new Error("no testId");
+  }
+
+  let test, questions = [];
+  let currentFilter = "ALL";
+
+  async function loadAll() {
+    try {
+      const list = await AdminApi.listAllTests();
+      test = list.find((t) => t.id === testId);
+      if (!test) throw new Error("Test not found.");
+      questions = await AdminApi.listQuestions(testId);
+
+      document.getElementById("testTitle").textContent = test.title;
+      document.getElementById("testMeta").textContent = `Test ${test.test_number} · ${test.duration_minutes} min · ${questions.length} questions`;
+
+      render();
+    } catch (err) {
+      qListEl.innerHTML = `<div class="state-block card"><h3>Failed to load</h3><p>${escapeHtml(err.message)}</p></div>`;
+    }
+  }
+
+  function render() {
+    const items = currentFilter === "ALL" ? questions : questions.filter((q) => q.section === currentFilter);
+
+    if (items.length === 0) {
+      qListEl.innerHTML = `<div class="state-block card"><h3>No questions ${currentFilter === "ALL" ? "yet" : "in this section"}</h3><p>Add a question or use bulk import to get started.</p></div>`;
+      return;
+    }
+
+    qListEl.innerHTML = items
+      .map(
+        (q, i) => `
+      <div class="card q-row" data-id="${q.id}">
+        <div class="qnum">${i + 1}</div>
+        <div class="qbody">
+          <div class="qtext">${escapeHtml(q.question_text)}</div>
+          <div class="qopts">
+            <div class="${q.correct_answer === "A" ? "correct" : ""}">A. ${escapeHtml(q.option_a)}</div>
+            <div class="${q.correct_answer === "B" ? "correct" : ""}">B. ${escapeHtml(q.option_b)}</div>
+            <div class="${q.correct_answer === "C" ? "correct" : ""}">C. ${escapeHtml(q.option_c)}</div>
+            <div class="${q.correct_answer === "D" ? "correct" : ""}">D. ${escapeHtml(q.option_d)}</div>
+          </div>
+          <div class="qtags">
+            <span class="badge badge-neutral">${SECTION_LABELS[q.section] || q.section}</span>
+            <span class="badge badge-neutral">${escapeHtml(q.topic)}</span>
+            <span class="badge badge-neutral">${q.difficulty}</span>
+          </div>
+        </div>
+        <div class="qactions">
+          <button class="btn btn-secondary edit-q">Edit</button>
+          <button class="btn btn-ghost del-q" style="color:var(--error);">Delete</button>
+        </div>
+      </div>`
+      )
+      .join("");
+
+    qListEl.querySelectorAll(".q-row").forEach((row) => {
+      const id = row.dataset.id;
+      const q = questions.find((x) => x.id === id);
+      row.querySelector(".edit-q").addEventListener("click", () => openQuestionModal(q));
+      row.querySelector(".del-q").addEventListener("click", async () => {
+        if (!confirm("Delete this question?")) return;
+        try {
+          await AdminApi.deleteQuestion(id);
+          showToast("Question deleted.", "success");
+          await loadAll();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    });
+  }
+
+  document.querySelectorAll("#filterTabs .tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      currentFilter = tab.dataset.filter;
+      document.querySelectorAll("#filterTabs .tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      render();
+    });
+  });
+
+  function openQuestionModal(q) {
+    const isEdit = !!q;
+    const mount = document.getElementById("modalMount");
+    mount.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-box">
+          <h3>${isEdit ? "Edit question" : "Add question"}</h3>
+          <div class="flex gap-8">
+            <div class="field" style="flex:1;">
+              <label>Section</label>
+              <select id="qSection">
+                <option value="ENGLISH" ${isEdit && q.section === "ENGLISH" ? "selected" : ""}>English</option>
+                <option value="MATHEMATICS" ${isEdit && q.section === "MATHEMATICS" ? "selected" : ""}>Mathematics</option>
+                <option value="ANALYTICAL" ${isEdit && q.section === "ANALYTICAL" ? "selected" : ""}>Analytical</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1;">
+              <label>Difficulty</label>
+              <select id="qDifficulty">
+                <option value="EASY" ${isEdit && q.difficulty === "EASY" ? "selected" : ""}>Easy</option>
+                <option value="MEDIUM" ${!isEdit || q.difficulty === "MEDIUM" ? "selected" : ""}>Medium</option>
+                <option value="HARD" ${isEdit && q.difficulty === "HARD" ? "selected" : ""}>Hard</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Topic</label>
+            <input type="text" id="qTopic" value="${isEdit ? escapeHtml(q.topic) : ""}" placeholder="e.g. Grammar, Algebra, Logical Reasoning" />
+          </div>
+          <div class="field">
+            <label>Question text</label>
+            <textarea id="qText" rows="3">${isEdit ? escapeHtml(q.question_text) : ""}</textarea>
+          </div>
+          <div class="opt-grid">
+            <div class="field opt-field">
+              <label><input type="radio" name="correctOpt" value="A" ${isEdit && q.correct_answer === "A" ? "checked" : ""}/> Option A</label>
+              <input type="text" id="optA" value="${isEdit ? escapeHtml(q.option_a) : ""}" />
+            </div>
+            <div class="field opt-field">
+              <label><input type="radio" name="correctOpt" value="B" ${isEdit && q.correct_answer === "B" ? "checked" : ""}/> Option B</label>
+              <input type="text" id="optB" value="${isEdit ? escapeHtml(q.option_b) : ""}" />
+            </div>
+            <div class="field opt-field">
+              <label><input type="radio" name="correctOpt" value="C" ${isEdit && q.correct_answer === "C" ? "checked" : ""}/> Option C</label>
+              <input type="text" id="optC" value="${isEdit ? escapeHtml(q.option_c) : ""}" />
+            </div>
+            <div class="field opt-field">
+              <label><input type="radio" name="correctOpt" value="D" ${isEdit && q.correct_answer === "D" ? "checked" : ""}/> Option D</label>
+              <input type="text" id="optD" value="${isEdit ? escapeHtml(q.option_d) : ""}" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Explanation (shown after submission)</label>
+            <textarea id="qExpl" rows="2">${isEdit ? escapeHtml(q.explanation || "") : ""}</textarea>
+          </div>
+          <div class="flex gap-8" style="margin-top:8px;">
+            <button class="btn btn-secondary btn-block" id="qCancel">Cancel</button>
+            <button class="btn btn-primary btn-block" id="qSave">${isEdit ? "Save changes" : "Add question"}</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById("qCancel").addEventListener("click", () => (mount.innerHTML = ""));
+
+    document.getElementById("qSave").addEventListener("click", async () => {
+      const section = document.getElementById("qSection").value;
+      const difficulty = document.getElementById("qDifficulty").value;
+      const topic = document.getElementById("qTopic").value.trim() || "General";
+      const question_text = document.getElementById("qText").value.trim();
+      const option_a = document.getElementById("optA").value.trim();
+      const option_b = document.getElementById("optB").value.trim();
+      const option_c = document.getElementById("optC").value.trim();
+      const option_d = document.getElementById("optD").value.trim();
+      const explanation = document.getElementById("qExpl").value.trim();
+      const correctRadio = document.querySelector('input[name="correctOpt"]:checked');
+
+      if (!question_text || !option_a || !option_b || !option_c || !option_d || !correctRadio) {
+        showToast("Please fill in the question, all four options, and mark the correct answer.", "error");
+        return;
+      }
+
+      const saveBtn = document.getElementById("qSave");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving…";
+
+      const payload = {
+        section, topic, difficulty, question_text,
+        option_a, option_b, option_c, option_d,
+        correct_answer: correctRadio.value,
+        explanation,
+      };
+
+      try {
+        if (isEdit) {
+          await AdminApi.updateQuestion(q.id, payload);
+          showToast("Question updated.", "success");
+        } else {
+          payload.order_index = questions.length;
+          await AdminApi.createQuestion(testId, payload);
+          showToast("Question added.", "success");
+        }
+        mount.innerHTML = "";
+        await loadAll();
+      } catch (err) {
+        showToast(err.message, "error");
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? "Save changes" : "Add question";
+      }
+    });
+  }
+
+  document.getElementById("addBtn").addEventListener("click", () => openQuestionModal(null));
+
+  function openImportModal() {
+    const mount = document.getElementById("modalMount");
+    mount.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-box wide">
+          <h3>Bulk import questions</h3>
+          <p style="font-size:13px; color:var(--text-muted); margin-top:-10px; margin-bottom:14px;">
+            Paste a JSON array. Each item needs: <code>section</code> (ENGLISH/MATHEMATICS/ANALYTICAL),
+            <code>topic</code>, <code>difficulty</code> (EASY/MEDIUM/HARD, optional), <code>question_text</code>,
+            <code>option_a</code>..<code>option_d</code>, <code>correct_answer</code> (A/B/C/D), <code>explanation</code> (optional).
+          </p>
+          <textarea id="impText" placeholder='[
+  {
+    "section": "ENGLISH",
+    "topic": "Grammar",
+    "difficulty": "MEDIUM",
+    "question_text": "Choose the correct sentence.",
+    "option_a": "...",
+    "option_b": "...",
+    "option_c": "...",
+    "option_d": "...",
+    "correct_answer": "B",
+    "explanation": "..."
+  }
+]'></textarea>
+          <div id="impError" class="field-error hidden mt-16"></div>
+          <div class="flex gap-8" style="margin-top:16px;">
+            <button class="btn btn-secondary btn-block" id="impCancel">Cancel</button>
+            <button class="btn btn-primary btn-block" id="impSave">Import questions</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById("impCancel").addEventListener("click", () => (mount.innerHTML = ""));
+
+    document.getElementById("impSave").addEventListener("click", async () => {
+      const errEl = document.getElementById("impError");
+      errEl.classList.add("hidden");
+      const raw = document.getElementById("impText").value.trim();
+
+      let items;
+      try {
+        items = JSON.parse(raw);
+        if (!Array.isArray(items)) throw new Error("Top-level JSON must be an array.");
+      } catch (e) {
+        errEl.textContent = "Invalid JSON: " + e.message;
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      const validSections = ["ENGLISH", "MATHEMATICS", "ANALYTICAL"];
+      const validAnswers = ["A", "B", "C", "D"];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (!validSections.includes(it.section)) {
+          errEl.textContent = `Item ${i + 1}: invalid or missing "section".`;
+          errEl.classList.remove("hidden");
+          return;
+        }
+        if (!it.question_text || !it.option_a || !it.option_b || !it.option_c || !it.option_d) {
+          errEl.textContent = `Item ${i + 1}: missing question text or options.`;
+          errEl.classList.remove("hidden");
+          return;
+        }
+        if (!validAnswers.includes(it.correct_answer)) {
+          errEl.textContent = `Item ${i + 1}: "correct_answer" must be A, B, C, or D.`;
+          errEl.classList.remove("hidden");
+          return;
+        }
+      }
+
+      const btn = document.getElementById("impSave");
+      btn.disabled = true;
+      btn.textContent = "Importing…";
+
+      try {
+        const baseIndex = questions.length;
+        await AdminApi.bulkCreateQuestions(
+          testId,
+          items.map((it, i) => ({ ...it, order_index: baseIndex + i }))
+        );
+        showToast(`Imported ${items.length} question${items.length === 1 ? "" : "s"}.`, "success");
+        document.getElementById("modalMount").innerHTML = "";
+        await loadAll();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove("hidden");
+        btn.disabled = false;
+        btn.textContent = "Import questions";
+      }
+    });
+  }
+
+  document.getElementById("importBtn").addEventListener("click", openImportModal);
+
+  loadAll();
+})();
+</script>
+</body>
+</html>

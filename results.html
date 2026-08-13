@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Result — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .result-wrap { padding: 40px 0 70px; max-width: 900px; margin: 0 auto; }
+
+  .score-hero {
+    text-align: center; padding: 40px 20px;
+    background: var(--navy); color: var(--white); border-radius: var(--radius);
+    margin-bottom: 20px;
+  }
+  .score-hero .label { font-size: 13px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  .score-hero .score { font-size: 48px; font-weight: 800; margin: 8px 0 4px; }
+  .score-hero .pct { font-size: 16px; color: #CBD5E1; }
+
+  .section-scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .section-score-card { padding: 18px; }
+  .section-score-card .name { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+  .section-score-card .fig { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+  @media (max-width: 700px) { .section-scores { grid-template-columns: 1fr; } }
+
+  .topic-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .topic-row:last-child { border-bottom: none; }
+  .topic-row .name { width: 180px; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .topic-row .track { flex: 1; }
+  .topic-row .pct { width: 44px; text-align: right; font-size: 13px; font-weight: 700; color: var(--text-muted); }
+
+  .rec-list { list-style: none; padding: 0; margin: 0; }
+  .rec-list li {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 14px; padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .rec-list li:last-child { border-bottom: none; }
+  .rec-list .icon { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-chip {
+    padding: 6px 14px; border-radius: 100px; font-size: 13px; font-weight: 600;
+    background: var(--white); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
+  }
+  .filter-chip.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+  .review-item { padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .review-item:last-child { border-bottom: none; }
+  .review-item .rq-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .review-item .rq-text { font-size: 14.5px; margin-bottom: 10px; }
+  .review-opts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .review-opt { padding: 8px 12px; border-radius: 6px; font-size: 13px; border: 1px solid var(--border); }
+  .review-opt.correct-answer { border-color: var(--success); background: var(--success-bg); }
+  .review-opt.wrong-selected { border-color: var(--error); background: var(--error-bg); }
+  .review-explanation { font-size: 13px; color: var(--text-muted); background: #F8FAFC; padding: 10px 12px; border-radius: 6px; }
+
+  .section-heading { font-size: 17px; margin: 40px 0 14px; }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<main class="container">
+  <div class="result-wrap" id="content">
+    <div class="state-block"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>
+</main>
+
+<div id="footer-mount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="scoring.js"></script>
+<script src="api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const session = await requireStudent();
+  if (!session) return;
+
+  renderNavbar();
+  renderFooter();
+
+  const params = new URLSearchParams(location.search);
+  const attemptId = params.get("attemptId");
+  const contentEl = document.getElementById("content");
+  let currentFilter = "all";
+  let questions, result;
+
+  if (!attemptId) {
+    contentEl.innerHTML = `<div class="state-block card"><h3>No attempt specified</h3><a href="results-list.html" class="btn btn-secondary">View your attempts</a></div>`;
+    return;
+  }
+
+  try {
+    const attempt = await Api.getAttempt(attemptId);
+    if (attempt.status !== "SUBMITTED" || !attempt.result) {
+      contentEl.innerHTML = `<div class="state-block card"><h3>This attempt hasn't been submitted yet</h3><a href="mock-test-take.html?attemptId=${encodeURIComponent(attemptId)}" class="btn btn-primary">Continue test</a></div>`;
+      return;
+    }
+    questions = await Api.getReviewQuestions(attempt.test_id);
+    result = attempt.result;
+    render();
+  } catch (err) {
+    contentEl.innerHTML = `<div class="state-block card"><h3>Failed to load result</h3><p>${escapeHtml(err.message)}</p></div>`;
+    return;
+  }
+
+  function sectionColor(pct) {
+    if (pct >= 70) return "success";
+    if (pct >= 40) return "warning";
+    return "error";
+  }
+
+  function buildRecommendations(result) {
+    const recs = [];
+    (result.topic_performance || [])
+      .filter((t) => t.percentage < 50)
+      .sort((a, b) => a.percentage - b.percentage)
+      .slice(0, 3)
+      .forEach((t) => recs.push(`Review "${t.topic}" — ${t.percentage}% correct (${t.correct}/${t.total}).`));
+    const unanswered = result.per_question.filter((q) => !q.was_answered).length;
+    if (unanswered > 0) recs.push(`${unanswered} question${unanswered === 1 ? "" : "s"} left unanswered — practice pacing to attempt every question.`);
+    if (recs.length === 0) recs.push("Strong performance across all topics — keep up the consistent practice.");
+    return recs;
+  }
+
+  function render() {
+    const s = result.sections;
+    const maxTopicBar = 100;
+
+    contentEl.innerHTML = `
+      <div class="score-hero">
+        <div class="label">Your Score</div>
+        <div class="score">${result.total_score} / ${result.total_questions}</div>
+        <div class="pct">${result.total_percentage}% · ${result.overall_accuracy}% accuracy on attempted questions</div>
+      </div>
+
+      <div class="section-scores">
+        ${Object.keys(s)
+          .map((sec) => {
+            const d = s[sec];
+            const label = SECTION_LABELS[sec] || sec;
+            const color = sectionColor(d.percentage);
+            return `
+            <div class="card section-score-card">
+              <div class="name">${label}</div>
+              <div class="fig">${d.score} / ${d.total}</div>
+              <div class="progress-track"><div class="progress-fill ${color}" style="width:${d.percentage}%"></div></div>
+            </div>`;
+          })
+          .join("")}
+      </div>
+
+      <h2 class="section-heading">Performance by topic</h2>
+      <div class="card">
+        ${result.topic_performance
+          .map(
+            (t) => `
+          <div class="topic-row">
+            <div class="name">${escapeHtml(t.topic)}</div>
+            <div class="track"><div class="progress-track"><div class="progress-fill ${sectionColor(t.percentage)}" style="width:${t.percentage}%"></div></div></div>
+            <div class="pct">${t.percentage}%</div>
+          </div>`
+          )
+          .join("")}
+      </div>
+
+      <h2 class="section-heading">Recommendations</h2>
+      <div class="card">
+        <ul class="rec-list">
+          ${buildRecommendations(result)
+            .map(
+              (r) => `
+            <li>
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              <span>${escapeHtml(r)}</span>
+            </li>`
+            )
+            .join("")}
+        </ul>
+      </div>
+
+      <h2 class="section-heading">Answer review</h2>
+      <div class="filter-bar" id="filterBar">
+        <div class="filter-chip active" data-filter="all">All (${result.per_question.length})</div>
+        <div class="filter-chip" data-filter="correct">Correct (${result.per_question.filter((q) => q.is_correct).length})</div>
+        <div class="filter-chip" data-filter="incorrect">Incorrect (${result.per_question.filter((q) => q.was_answered && !q.is_correct).length})</div>
+        <div class="filter-chip" data-filter="unanswered">Unanswered (${result.per_question.filter((q) => !q.was_answered).length})</div>
+      </div>
+      <div class="card" id="reviewList"></div>
+    `;
+
+    document.querySelectorAll(".filter-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        currentFilter = chip.dataset.filter;
+        document.querySelectorAll(".filter-chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        renderReview();
+      });
+    });
+
+    renderReview();
+  }
+
+  function renderReview() {
+    const byId = new Map(questions.map((q) => [q.id, q]));
+    let items = result.per_question;
+
+    if (currentFilter === "correct") items = items.filter((q) => q.is_correct);
+    else if (currentFilter === "incorrect") items = items.filter((q) => q.was_answered && !q.is_correct);
+    else if (currentFilter === "unanswered") items = items.filter((q) => !q.was_answered);
+
+    const listEl = document.getElementById("reviewList");
+
+    if (items.length === 0) {
+      listEl.innerHTML = `<div class="state-block"><h3>No questions in this filter</h3></div>`;
+      return;
+    }
+
+    listEl.innerHTML = items
+      .map((item) => {
+        const q = byId.get(item.question_id);
+        const statusBadge = !item.was_answered
+          ? `<span class="badge badge-neutral">Unanswered</span>`
+          : item.is_correct
+          ? `<span class="badge badge-success">Correct</span>`
+          : `<span class="badge badge-error">Incorrect</span>`;
+
+        const optsHtml = ["A", "B", "C", "D"]
+          .map((letter) => {
+            let cls = "review-opt";
+            if (letter === q.correct_answer) cls += " correct-answer";
+            else if (letter === item.selected_answer && !item.is_correct) cls += " wrong-selected";
+            return `<div class="${cls}"><strong>${letter}.</strong> ${escapeHtml(q.options[letter])}</div>`;
+          })
+          .join("");
+
+        return `
+        <div class="review-item">
+          <div class="rq-meta">
+            <span class="badge badge-neutral">${q.topic}</span>
+            ${statusBadge}
+          </div>
+          <div class="rq-text">${escapeHtml(q.question_text)}</div>
+          <div class="review-opts">${optsHtml}</div>
+          <div class="review-explanation"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>
+        </div>`;
+      })
+      .join("");
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Test Access — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .admin-topbar { background: var(--navy); color: var(--white); padding: 14px 0; }
+  .admin-topbar-inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .admin-topbar a.brand { color: var(--white); font-weight: 800; font-size: 15px; text-decoration: none; }
+  .admin-topbar .tabs { display: flex; gap: 4px; }
+  .admin-topbar .tabs a { color: #CBD5E1; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 6px; text-decoration: none; }
+  .admin-topbar .tabs a.active, .admin-topbar .tabs a:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+  .admin-topbar .out { color: #FCA5A5; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+  .page-header { padding: 28px 0 16px; }
+  .page-header .back { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+  .page-header h1 { font-size: 22px; margin: 6px 0 2px; }
+  .page-header p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+  .notice { padding: 14px 18px; border-radius: var(--radius-sm); background: #FFFBEB; border: 1px solid #FDE68A; font-size: 13px; color: #92400E; margin: 20px 0; }
+
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 60px; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+  .panel h3 { font-size: 15px; margin-bottom: 12px; }
+  .student-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 10px; }
+  .student-row:last-child { border-bottom: none; }
+  .student-row .info .name { font-size: 13.5px; font-weight: 600; }
+  .student-row .info .id { font-size: 12px; color: var(--text-muted); }
+  .search-input { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="admin-topbar">
+  <div class="admin-topbar-inner">
+    <a href="admin-dashboard.html" class="brand">IBA Admin</a>
+    <div class="tabs">
+      <a href="admin-dashboard.html" class="active">Mock Tests</a>
+      <a href="admin-students.html">Students</a>
+      <a href="admin-attempts.html">Attempts</a>
+    </div>
+    <div class="flex items-center gap-16">
+      <a href="index.html" style="color:#CBD5E1; font-size:13px; text-decoration:none;">View site</a>
+      <a href="#" class="out" id="signOutLink">Sign out</a>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <div class="page-header">
+    <a href="admin-dashboard.html" class="back">← Back to mock tests</a>
+    <h1 id="testTitle">Loading…</h1>
+    <p id="testMeta"></p>
+  </div>
+
+  <div id="publicNotice" class="notice hidden">
+    This test is currently <strong>public</strong> — every student can already take it, so access grants below have no effect.
+    Turn off "Public access" for this test in the mock test editor to restrict it to specific students.
+  </div>
+
+  <div class="layout">
+    <div class="card panel">
+      <h3>Students with access</h3>
+      <div id="grantedList"><div class="spinner" style="margin:20px auto;"></div></div>
+    </div>
+    <div class="card panel">
+      <h3>Grant access</h3>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search by name or student ID…" />
+      <div id="allList"><div class="spinner" style="margin:20px auto;"></div></div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="api.js"></script>
+<script src="admin-api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const profile = await requireAdmin();
+  if (!profile) return;
+
+  document.getElementById("signOutLink").addEventListener("click", (e) => { e.preventDefault(); signOut(); });
+
+  const params = new URLSearchParams(location.search);
+  const testId = params.get("testId");
+
+  if (!testId) {
+    document.querySelector("main").innerHTML = `<div class="state-block card"><h3>No test specified</h3><a href="admin-dashboard.html" class="btn btn-secondary">Back to mock tests</a></div>`;
+    throw new Error("no testId");
+  }
+
+  let allStudents = [];
+  let grantedIds = new Set();
+
+  async function loadAll() {
+    try {
+      const tests = await AdminApi.listAllTests();
+      const test = tests.find((t) => t.id === testId);
+      if (!test) throw new Error("Test not found.");
+
+      document.getElementById("testTitle").textContent = test.title;
+      document.getElementById("testMeta").textContent = `Test ${test.test_number} · ${test.is_public ? "Public" : "Restricted"} access`;
+      document.getElementById("publicNotice").classList.toggle("hidden", !test.is_public);
+
+      allStudents = await AdminApi.listStudents();
+      const access = await AdminApi.listAccessForTest(testId);
+      grantedIds = new Set(access.map((a) => a.student_id));
+
+      renderGranted(access);
+      renderAll();
+    } catch (err) {
+      document.getElementById("grantedList").innerHTML = `<p class="text-muted" style="font-size:13px;">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  function renderGranted(access) {
+    const el = document.getElementById("grantedList");
+    if (access.length === 0) {
+      el.innerHTML = `<p class="text-muted" style="font-size:13px;">No students granted yet.</p>`;
+      return;
+    }
+    el.innerHTML = access
+      .map((a) => {
+        const p = a.profiles || {};
+        return `
+        <div class="student-row" data-id="${a.student_id}">
+          <div class="info">
+            <div class="name">${escapeHtml(p.name || "—")}</div>
+            <div class="id">${escapeHtml(p.student_id || "")}</div>
+          </div>
+          <button class="btn btn-ghost revoke-btn" style="color:var(--error); font-size:12.5px;">Revoke</button>
+        </div>`;
+      })
+      .join("");
+
+    el.querySelectorAll(".revoke-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const row = e.target.closest(".student-row");
+        const studentId = row.dataset.id;
+        try {
+          await AdminApi.revokeAccess(testId, studentId);
+          showToast("Access revoked.", "success");
+          await loadAll();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    });
+  }
+
+  function renderAll(filterText) {
+    const el = document.getElementById("allList");
+    const term = (filterText || "").toLowerCase();
+    const filtered = allStudents.filter(
+      (s) =>
+        !grantedIds.has(s.id) &&
+        (!term || (s.name || "").toLowerCase().includes(term) || (s.student_id || "").toLowerCase().includes(term))
+    );
+
+    if (filtered.length === 0) {
+      el.innerHTML = `<p class="text-muted" style="font-size:13px;">No matching students.</p>`;
+      return;
+    }
+
+    el.innerHTML = filtered
+      .map(
+        (s) => `
+      <div class="student-row" data-id="${s.id}">
+        <div class="info">
+          <div class="name">${escapeHtml(s.name || "—")}</div>
+          <div class="id">${escapeHtml(s.student_id || "")}</div>
+        </div>
+        <button class="btn btn-secondary grant-btn" style="font-size:12.5px;">Grant</button>
+      </div>`
+      )
+      .join("");
+
+    el.querySelectorAll(".grant-btn").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        const row = e.target.closest(".student-row");
+        const studentId = row.dataset.id;
+        try {
+          await AdminApi.grantAccess(testId, studentId);
+          showToast("Access granted.", "success");
+          await loadAll();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    });
+  }
+
+  document.getElementById("searchInput").addEventListener("input", (e) => renderAll(e.target.value));
+
+  loadAll();
+})();
+</script>
+</body>
+</html>

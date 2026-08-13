@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Study Routine — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .page-header { padding: 44px 0 28px; }
+  .routine-grid { display: flex; flex-direction: column; gap: 10px; padding-bottom: 60px; }
+  .task-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; }
+  .task-row .time { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); width: 90px; flex-shrink: 0; }
+  .task-row .subject { font-weight: 600; font-size: 14px; flex: 1; }
+  .task-row.done .subject { text-decoration: line-through; color: var(--text-subtle); }
+  .checkbox { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--border); cursor: pointer; flex-shrink: 0; display:flex; align-items:center; justify-content:center; }
+  .checkbox.checked { background: var(--success); border-color: var(--success); color: white; }
+  .add-form { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+  .add-form input { flex: 1; min-width: 140px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<main class="container">
+  <div class="page-header">
+    <h1 style="font-size:26px;">Study Routine</h1>
+    <p class="text-muted" style="font-size:14px;">Plan your week. <span id="progressText"></span></p>
+  </div>
+
+  <form class="add-form" id="addForm">
+    <input type="text" id="subjectInput" placeholder="Subject (e.g. Mathematics)" required />
+    <input type="time" id="timeInput" required />
+    <button type="submit" class="btn btn-primary">Add task</button>
+  </form>
+
+  <div class="routine-grid" id="taskList"></div>
+</main>
+
+<div id="footer-mount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="shared.js"></script>
+<script>
+  renderNavbar("routine");
+  renderFooter();
+
+  // Stored locally for the demo — real version is per-student, backend-persisted.
+  const KEY = "iba_routine_tasks_v1";
+
+  function loadTasks() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY)) || defaultTasks();
+    } catch {
+      return defaultTasks();
+    }
+  }
+  function saveTasks(tasks) {
+    localStorage.setItem(KEY, JSON.stringify(tasks));
+  }
+  function defaultTasks() {
+    return [
+      { id: "1", time: "08:00", subject: "Mathematics", done: false },
+      { id: "2", time: "10:00", subject: "English", done: true },
+      { id: "3", time: "16:00", subject: "Analytical", done: false },
+    ];
+  }
+
+  let tasks = loadTasks();
+
+  function render() {
+    tasks.sort((a, b) => a.time.localeCompare(b.time));
+    const doneCount = tasks.filter((t) => t.done).length;
+    document.getElementById("progressText").textContent = `${doneCount} / ${tasks.length} tasks completed today.`;
+
+    const listEl = document.getElementById("taskList");
+    if (tasks.length === 0) {
+      listEl.innerHTML = `<div class="state-block card"><h3>No tasks yet</h3><p>Add your first study task above.</p></div>`;
+      return;
+    }
+    listEl.innerHTML = tasks
+      .map(
+        (t) => `
+      <div class="card task-row ${t.done ? "done" : ""}">
+        <div class="checkbox ${t.done ? "checked" : ""}" data-id="${t.id}">
+          ${t.done ? "✓" : ""}
+        </div>
+        <div class="time">${t.time}</div>
+        <div class="subject">${escapeHtml(t.subject)}</div>
+        <button class="btn btn-ghost" data-delete="${t.id}" aria-label="Delete task">✕</button>
+      </div>`
+      )
+      .join("");
+
+    listEl.querySelectorAll(".checkbox").forEach((cb) => {
+      cb.addEventListener("click", () => {
+        const task = tasks.find((t) => t.id === cb.dataset.id);
+        task.done = !task.done;
+        saveTasks(tasks);
+        render();
+      });
+    });
+    listEl.querySelectorAll("[data-delete]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        tasks = tasks.filter((t) => t.id !== btn.dataset.delete);
+        saveTasks(tasks);
+        render();
+      });
+    });
+  }
+
+  document.getElementById("addForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const subject = document.getElementById("subjectInput").value.trim();
+    const time = document.getElementById("timeInput").value;
+    if (!subject || !time) return;
+    tasks.push({ id: String(Date.now()), time, subject, done: false });
+    saveTasks(tasks);
+    document.getElementById("subjectInput").value = "";
+    document.getElementById("timeInput").value = "";
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

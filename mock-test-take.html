@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Taking Test — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  body { background: var(--bg); }
+
+  .test-header {
+    position: sticky; top: 0; z-index: 60;
+    background: var(--navy); color: var(--white);
+  }
+  .test-header-inner {
+    max-width: 1120px; margin: 0 auto; padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .test-header .title { font-size: 14px; font-weight: 600; }
+  .test-header .section-label { font-size: 12px; color: #94A3B8; margin-top: 2px; }
+  .timer-box {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-weight: 700; font-size: 16px;
+    background: rgba(255,255,255,0.08); padding: 6px 14px; border-radius: 6px;
+  }
+  .timer-box.warning { background: rgba(245,158,11,0.25); color: #FCD34D; }
+  .timer-box.danger { background: rgba(220,38,38,0.3); color: #FCA5A5; }
+
+  .test-layout {
+    max-width: 1120px; margin: 0 auto; padding: 24px 20px 100px;
+    display: grid; grid-template-columns: 1fr 300px; gap: 24px;
+  }
+  @media (max-width: 900px) {
+    .test-layout { grid-template-columns: 1fr; padding-bottom: 180px; }
+    .navigator-panel { order: -1; }
+  }
+
+  .question-card { padding: 28px; }
+  .q-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 8px; }
+  .q-number { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+  .q-text { font-size: 17px; line-height: 1.55; margin-bottom: 24px; }
+
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    cursor: pointer; transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .option:hover { border-color: var(--accent); }
+  .option.selected { border-color: var(--accent); background: #EFF6FF; }
+  .option .opt-letter {
+    width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0; color: var(--text-muted);
+  }
+  .option.selected .opt-letter { border-color: var(--accent); background: var(--accent); color: var(--white); }
+  .option .opt-text { font-size: 14.5px; padding-top: 2px; }
+
+  .q-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; gap: 10px; flex-wrap: wrap; }
+
+  .navigator-panel { align-self: start; position: sticky; top: 76px; }
+  .nav-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+  .nav-legend .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+  .section-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .section-tab {
+    flex: 1; text-align: center; padding: 8px 6px; font-size: 12px; font-weight: 600;
+    border-radius: 6px; background: #F1F5F9; color: var(--text-muted); cursor: pointer;
+  }
+  .section-tab.active { background: var(--navy); color: var(--white); }
+
+  .q-grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+    max-height: 340px; overflow-y: auto; padding-right: 2px;
+  }
+  .q-dot {
+    aspect-ratio: 1; border-radius: 6px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; cursor: pointer; background: var(--white); color: var(--text-muted);
+  }
+  .q-dot.answered { background: var(--success); color: var(--white); border-color: var(--success); }
+  .q-dot.marked { background: var(--warning); color: var(--white); border-color: var(--warning); }
+  .q-dot.current { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .submit-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--white);
+    border-top: 1px solid var(--border); padding: 12px 20px; z-index: 60;
+  }
+  .submit-bar-inner { max-width: 1120px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .submit-stats { font-size: 13px; color: var(--text-muted); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-box { background: var(--white); border-radius: var(--radius); padding: 28px; max-width: 400px; width: 100%; }
+  .modal-box h3 { font-size: 17px; margin-bottom: 10px; }
+  .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<div class="test-header">
+  <div class="test-header-inner">
+    <div>
+      <div class="title" id="hdrTitle">Loading test…</div>
+      <div class="section-label" id="hdrSection">—</div>
+    </div>
+    <div class="timer-box" id="timerBox">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span id="timerText">--:--</span>
+    </div>
+  </div>
+</div>
+
+<div id="loadingState" class="state-block" style="padding-top:80px;"><div class="spinner" style="margin:0 auto;"></div></div>
+
+<div class="test-layout hidden" id="testLayout">
+  <div>
+    <div class="card question-card">
+      <div class="q-meta">
+        <span class="q-number" id="qNumber">Question 1 of —</span>
+        <span class="badge badge-neutral" id="qTopic">—</span>
+      </div>
+      <div class="q-text" id="qText">—</div>
+      <div class="options" id="qOptions"></div>
+
+      <div class="q-actions">
+        <button class="btn btn-secondary" id="markBtn">Mark for review</button>
+        <div class="flex gap-8">
+          <button class="btn btn-secondary" id="prevBtn">Previous</button>
+          <button class="btn btn-primary" id="nextBtn">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="navigator-panel">
+    <div class="card">
+      <div class="nav-legend">
+        <span><span class="dot" style="background:var(--success);"></span>Answered</span>
+        <span><span class="dot" style="background:var(--warning);"></span>Marked</span>
+        <span><span class="dot" style="background:#E2E8F0;"></span>Unanswered</span>
+      </div>
+      <div class="section-tabs" id="sectionTabs"></div>
+      <div class="q-grid" id="qGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="submit-bar hidden" id="submitBar">
+  <div class="submit-bar-inner">
+    <span class="submit-stats" id="submitStats">0 of — answered</span>
+    <button class="btn btn-primary btn-lg" id="submitBtn">Submit test</button>
+  </div>
+</div>
+
+<div id="modalMount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="scoring.js"></script>
+<script src="api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const user = await requireStudent();
+  if (!user) return;
+
+  const params = new URLSearchParams(location.search);
+  const attemptId = params.get("attemptId");
+  const loadingEl = document.getElementById("loadingState");
+  const layoutEl = document.getElementById("testLayout");
+  const submitBarEl = document.getElementById("submitBar");
+
+  if (!attemptId) {
+    loadingEl.innerHTML = `<h3>No attempt specified</h3><a href="mock-tests.html" class="btn btn-secondary">Back to mock tests</a>`;
+    return;
+  }
+
+  let attempt, test, questions, answers, marked;
+  let currentIndex = 0;
+  let activeSection;
+  let sectionOrder;
+  let timerInterval;
+  let warned = { ten: false, five: false, one: false };
+  let autosaveTimeout;
+
+  try {
+    attempt = await Api.getAttempt(attemptId);
+    if (attempt.status === "SUBMITTED") {
+      window.location.href = `results.html?attemptId=${encodeURIComponent(attemptId)}`;
+      return;
+    }
+    test = await Api.getTest(attempt.test_id);
+    questions = await Api.getTestQuestions(attempt.test_id);
+    answers = { ...attempt.answers };
+    marked = { ...attempt.marked };
+  } catch (err) {
+    loadingEl.innerHTML = `<h3>Failed to load test</h3><p>${escapeHtml(err.message)}</p>`;
+    return;
+  }
+
+  if (questions.length === 0) {
+    loadingEl.innerHTML = `<h3>This test has no questions yet</h3><a href="mock-tests.html" class="btn btn-secondary">Back to mock tests</a>`;
+    return;
+  }
+
+  loadingEl.classList.add("hidden");
+  layoutEl.classList.remove("hidden");
+  submitBarEl.classList.remove("hidden");
+
+  document.getElementById("hdrTitle").textContent = test.title;
+
+  // Derive section order from the actual questions present in this test,
+  // in the canonical ENGLISH → MATHEMATICS → ANALYTICAL order.
+  sectionOrder = SECTION_ORDER.filter((s) => questions.some((q) => q.section === s));
+  activeSection = sectionOrder[0];
+
+  const sectionsMap = {};
+  sectionOrder.forEach((s) => {
+    sectionsMap[s] = questions.filter((q) => q.section === s);
+  });
+
+  // ---- Timer (anchored to attempt.started_at, survives refresh) ----
+  const durationMs = test.duration_minutes * 60 * 1000;
+  const startedAtMs = new Date(attempt.started_at).getTime();
+  const endAtMs = startedAtMs + durationMs;
+
+  function tick() {
+    const remainingMs = endAtMs - Date.now();
+    const timerBox = document.getElementById("timerBox");
+    const timerText = document.getElementById("timerText");
+
+    if (remainingMs <= 0) {
+      timerText.textContent = "00:00";
+      clearInterval(timerInterval);
+      doSubmit(true);
+      return;
+    }
+
+    const totalSec = Math.floor(remainingMs / 1000);
+    const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+    const ss = String(totalSec % 60).padStart(2, "0");
+    timerText.textContent = `${mm}:${ss}`;
+
+    const minsLeft = totalSec / 60;
+    timerBox.classList.remove("warning", "danger");
+    if (minsLeft <= 1 && !warned.one) {
+      warned.one = true;
+      showToast("1 minute remaining.", "error");
+    } else if (minsLeft <= 5 && !warned.five) {
+      warned.five = true;
+      showToast("5 minutes remaining.", "error");
+    } else if (minsLeft <= 10 && !warned.ten) {
+      warned.ten = true;
+      showToast("10 minutes remaining.");
+    }
+    if (minsLeft <= 5) timerBox.classList.add("danger");
+    else if (minsLeft <= 10) timerBox.classList.add("warning");
+  }
+  tick();
+  timerInterval = setInterval(tick, 1000);
+
+  // ---- Rendering ----
+  function currentQuestion() {
+    return sectionsMap[activeSection][currentIndex];
+  }
+
+  function globalIndexOf(section, idx) {
+    let offset = 0;
+    for (const s of sectionOrder) {
+      if (s === section) return offset + idx + 1;
+      offset += sectionsMap[s].length;
+    }
+    return idx + 1;
+  }
+
+  function renderSectionTabs() {
+    const el = document.getElementById("sectionTabs");
+    el.innerHTML = sectionOrder
+      .map((s) => {
+        const label = SECTION_LABELS[s] || s;
+        return `<div class="section-tab ${s === activeSection ? "active" : ""}" data-section="${s}">${label}</div>`;
+      })
+      .join("");
+    el.querySelectorAll(".section-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        activeSection = tab.dataset.section;
+        currentIndex = 0;
+        renderAll();
+      });
+    });
+  }
+
+  function renderGrid() {
+    const el = document.getElementById("qGrid");
+    el.innerHTML = sectionsMap[activeSection]
+      .map((q, i) => {
+        const isAnswered = !!answers[q.id];
+        const isMarked = !!marked[q.id];
+        const isCurrent = i === currentIndex;
+        let cls = "q-dot";
+        if (isMarked) cls += " marked";
+        else if (isAnswered) cls += " answered";
+        if (isCurrent) cls += " current";
+        return `<div class="${cls}" data-idx="${i}">${i + 1}</div>`;
+      })
+      .join("");
+    el.querySelectorAll(".q-dot").forEach((dot) => {
+      dot.addEventListener("click", () => {
+        currentIndex = parseInt(dot.dataset.idx, 10);
+        renderAll();
+      });
+    });
+  }
+
+  function renderQuestion() {
+    const q = currentQuestion();
+    const gIdx = globalIndexOf(activeSection, currentIndex);
+    document.getElementById("hdrSection").textContent = `${SECTION_LABELS[activeSection] || activeSection} — Question ${currentIndex + 1} of ${sectionsMap[activeSection].length}`;
+    document.getElementById("qNumber").textContent = `Question ${gIdx} of ${questions.length}`;
+    document.getElementById("qTopic").textContent = q.topic;
+    document.getElementById("qText").textContent = q.question_text;
+
+    const optionsEl = document.getElementById("qOptions");
+    const selected = answers[q.id];
+    optionsEl.innerHTML = ["A", "B", "C", "D"]
+      .map((letter) => {
+        const isSelected = selected === letter;
+        return `
+        <div class="option ${isSelected ? "selected" : ""}" data-letter="${letter}">
+          <span class="opt-letter">${letter}</span>
+          <span class="opt-text">${escapeHtml(q.options[letter])}</span>
+        </div>`;
+      })
+      .join("");
+
+    optionsEl.querySelectorAll(".option").forEach((opt) => {
+      opt.addEventListener("click", () => {
+        answers[q.id] = opt.dataset.letter;
+        scheduleAutosave();
+        renderAll();
+      });
+    });
+
+    const markBtn = document.getElementById("markBtn");
+    markBtn.textContent = marked[q.id] ? "Unmark review" : "Mark for review";
+    markBtn.onclick = () => {
+      marked[q.id] = !marked[q.id];
+      scheduleAutosave();
+      renderAll();
+    };
+
+    document.getElementById("prevBtn").disabled = currentIndex === 0 && activeSection === sectionOrder[0];
+    document.getElementById("nextBtn").textContent =
+      currentIndex === sectionsMap[activeSection].length - 1 && activeSection === sectionOrder[sectionOrder.length - 1]
+        ? "Review & submit"
+        : "Next";
+  }
+
+  function renderStats() {
+    const answeredCount = Object.keys(answers).filter((k) => answers[k]).length;
+    document.getElementById("submitStats").textContent = `${answeredCount} of ${questions.length} answered`;
+  }
+
+  function renderAll() {
+    renderSectionTabs();
+    renderGrid();
+    renderQuestion();
+    renderStats();
+  }
+
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+    } else {
+      const secIdx = sectionOrder.indexOf(activeSection);
+      if (secIdx > 0) {
+        activeSection = sectionOrder[secIdx - 1];
+        currentIndex = sectionsMap[activeSection].length - 1;
+      }
+    }
+    renderAll();
+  });
+
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    if (currentIndex < sectionsMap[activeSection].length - 1) {
+      currentIndex++;
+      renderAll();
+    } else {
+      const secIdx = sectionOrder.indexOf(activeSection);
+      if (secIdx < sectionOrder.length - 1) {
+        activeSection = sectionOrder[secIdx + 1];
+        currentIndex = 0;
+        renderAll();
+      } else {
+        openSubmitModal();
+      }
+    }
+  });
+
+  document.getElementById("submitBtn").addEventListener("click", openSubmitModal);
+
+  function scheduleAutosave() {
+    clearTimeout(autosaveTimeout);
+    autosaveTimeout = setTimeout(() => {
+      Api.saveAttemptProgress(attemptId, { answers, marked }).catch(() => {});
+    }, 400);
+  }
+
+  // Flushes any pending debounced save immediately. Used when the page is
+  // about to be hidden/closed, so the last answer isn't lost waiting on
+  // the 400ms debounce window.
+  function flushAutosave() {
+    clearTimeout(autosaveTimeout);
+    Api.saveAttemptProgress(attemptId, { answers, marked }).catch(() => {});
+  }
+
+  function openSubmitModal() {
+    const answeredCount = Object.keys(answers).filter((k) => answers[k]).length;
+    const unanswered = questions.length - answeredCount;
+    const mount = document.getElementById("modalMount");
+    mount.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+          <h3>Submit test?</h3>
+          <p>${unanswered > 0 ? `You have <strong>${unanswered}</strong> unanswered question${unanswered === 1 ? "" : "s"}. ` : ""}Once submitted, you cannot change your answers.</p>
+          <div class="flex gap-8">
+            <button class="btn btn-secondary btn-block" id="cancelSubmit">Keep working</button>
+            <button class="btn btn-primary btn-block" id="confirmSubmit">Submit</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById("cancelSubmit").addEventListener("click", () => (mount.innerHTML = ""));
+    document.getElementById("confirmSubmit").addEventListener("click", () => doSubmit(false));
+  }
+
+  async function doSubmit(auto) {
+    clearInterval(timerInterval);
+    document.getElementById("modalMount").innerHTML = "";
+    try {
+      await Api.saveAttemptProgress(attemptId, { answers, marked });
+      await Api.submitAttempt(attemptId);
+      showToast(auto ? "Time's up — test submitted automatically." : "Test submitted successfully.", "success");
+      setTimeout(() => {
+        window.location.href = `results.html?attemptId=${encodeURIComponent(attemptId)}`;
+      }, 500);
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
+  // Multiple signals, not just beforeunload: on mobile, switching apps or
+  // closing a tab often fires visibilitychange/pagehide without ever firing
+  // beforeunload, so relying on beforeunload alone loses progress silently.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushAutosave();
+  });
+  window.addEventListener("pagehide", flushAutosave);
+  window.addEventListener("beforeunload", flushAutosave);
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

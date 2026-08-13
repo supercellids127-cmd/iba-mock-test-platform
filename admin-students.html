@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Students — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .admin-topbar { background: var(--navy); color: var(--white); padding: 14px 0; }
+  .admin-topbar-inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .admin-topbar a.brand { color: var(--white); font-weight: 800; font-size: 15px; text-decoration: none; }
+  .admin-topbar .tabs { display: flex; gap: 4px; }
+  .admin-topbar .tabs a { color: #CBD5E1; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 6px; text-decoration: none; }
+  .admin-topbar .tabs a.active, .admin-topbar .tabs a:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+  .admin-topbar .out { color: #FCA5A5; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+  .page-header { padding: 32px 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .page-header h1 { font-size: 22px; }
+  .page-header p { font-size: 13px; color: var(--text-muted); margin: 4px 0 0; }
+
+  .search-input { margin-bottom: 16px; max-width: 320px; }
+
+  .student-table { width: 100%; border-collapse: collapse; }
+  .student-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .student-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .student-table tr:last-child td { border-bottom: none; }
+  .student-table .name { font-weight: 600; }
+  .student-table .id-cell { color: var(--text-muted); font-family: monospace; font-size: 12.5px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+  .modal-box { background: var(--white); border-radius: var(--radius); padding: 28px; max-width: 420px; width: 100%; margin: auto; }
+  .modal-box h3 { font-size: 17px; margin-bottom: 6px; }
+  .modal-box p.hint { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px; }
+  .modal-box .field { margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<div class="admin-topbar">
+  <div class="admin-topbar-inner">
+    <a href="admin-dashboard.html" class="brand">IBA Admin</a>
+    <div class="tabs">
+      <a href="admin-dashboard.html">Mock Tests</a>
+      <a href="admin-students.html" class="active">Students</a>
+      <a href="admin-attempts.html">Attempts</a>
+    </div>
+    <div class="flex items-center gap-16">
+      <a href="index.html" style="color:#CBD5E1; font-size:13px; text-decoration:none;">View site</a>
+      <a href="#" class="out" id="signOutLink">Sign out</a>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <div class="page-header">
+    <div>
+      <h1>Students</h1>
+      <p>Create student logins (Student ID + password) and manage existing accounts.</p>
+    </div>
+    <button class="btn btn-primary" id="newStudentBtn">+ New student</button>
+  </div>
+
+  <input type="text" id="searchInput" class="search-input" placeholder="Search by name or student ID…" />
+
+  <div class="card" style="padding:0; overflow-x:auto;">
+    <table class="student-table">
+      <thead>
+        <tr><th>Name</th><th>Student ID</th><th>Joined</th><th></th></tr>
+      </thead>
+      <tbody id="studentRows">
+        <tr><td colspan="4"><div class="spinner" style="margin:20px auto;"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<div id="modalMount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="api.js"></script>
+<script src="admin-api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const profile = await requireAdmin();
+  if (!profile) return;
+
+  document.getElementById("signOutLink").addEventListener("click", (e) => { e.preventDefault(); signOut(); });
+
+  let students = [];
+
+  async function loadAll() {
+    const tbody = document.getElementById("studentRows");
+    tbody.innerHTML = `<tr><td colspan="4"><div class="spinner" style="margin:20px auto;"></div></td></tr>`;
+    try {
+      students = await AdminApi.listStudents();
+      renderRows();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--text-muted); font-size:13px;">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  function renderRows(filterText) {
+    const tbody = document.getElementById("studentRows");
+    const term = (filterText || "").toLowerCase();
+    const filtered = students.filter(
+      (s) => !term || (s.name || "").toLowerCase().includes(term) || (s.student_id || "").toLowerCase().includes(term)
+    );
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--text-muted); font-size:13px;">No students found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered
+      .map(
+        (s) => `
+      <tr data-id="${s.id}">
+        <td class="name">${escapeHtml(s.name || "—")}</td>
+        <td class="id-cell">${escapeHtml(s.student_id || "")}</td>
+        <td>${formatDate(s.created_at)}</td>
+        <td style="text-align:right;">
+          <button class="btn btn-secondary reset-btn" style="font-size:12.5px;">Reset password</button>
+        </td>
+      </tr>`
+      )
+      .join("");
+
+    tbody.querySelectorAll(".reset-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const row = e.target.closest("tr");
+        const student = students.find((s) => s.id === row.dataset.id);
+        openStudentModal(student);
+      });
+    });
+  }
+
+  function openStudentModal(student) {
+    const isEdit = !!student;
+    const mount = document.getElementById("modalMount");
+    mount.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+          <h3>${isEdit ? "Reset password" : "New student"}</h3>
+          <p class="hint">${isEdit ? "Set a new password for this student. Their Student ID stays the same." : "Creates a login the student can use immediately. Student IDs must be unique."}</p>
+          <div class="field">
+            <label>Student ID / Username</label>
+            <input type="text" id="sId" value="${isEdit ? escapeHtml(student.student_id || "") : ""}" placeholder="e.g. IBA34-2201" ${isEdit ? "disabled" : ""} />
+          </div>
+          <div class="field">
+            <label>Full name</label>
+            <input type="text" id="sName" value="${isEdit ? escapeHtml(student.name || "") : ""}" placeholder="Student's full name" />
+          </div>
+          <div class="field">
+            <label>${isEdit ? "New password" : "Password"}</label>
+            <input type="text" id="sPassword" placeholder="At least 6 characters" />
+          </div>
+          <div class="flex gap-8" style="margin-top:20px;">
+            <button class="btn btn-secondary btn-block" id="sCancel">Cancel</button>
+            <button class="btn btn-primary btn-block" id="sSave">${isEdit ? "Reset password" : "Create student"}</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById("sCancel").addEventListener("click", () => (mount.innerHTML = ""));
+
+    document.getElementById("sSave").addEventListener("click", async () => {
+      const student_id = isEdit ? student.student_id : document.getElementById("sId").value.trim();
+      const name = document.getElementById("sName").value.trim() || student_id;
+      const password = document.getElementById("sPassword").value;
+
+      if (!student_id) {
+        showToast("Student ID is required.", "error");
+        return;
+      }
+      if (!password || password.length < 6) {
+        showToast("Password must be at least 6 characters.", "error");
+        return;
+      }
+
+      const saveBtn = document.getElementById("sSave");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving…";
+
+      try {
+        await AdminApi.createStudent({ student_id, name, password });
+        showToast(isEdit ? "Password reset." : "Student created.", "success");
+        mount.innerHTML = "";
+        await loadAll();
+      } catch (err) {
+        showToast(err.message, "error");
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? "Reset password" : "Create student";
+      }
+    });
+  }
+
+  document.getElementById("newStudentBtn").addEventListener("click", () => openStudentModal(null));
+  document.getElementById("searchInput").addEventListener("input", (e) => renderRows(e.target.value));
+
+  loadAll();
+})();
+</script>
+</body>
+</html>

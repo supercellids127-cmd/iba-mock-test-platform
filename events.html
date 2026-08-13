@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Events — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .page-header { padding: 44px 0 28px; }
+  .countdown { display: flex; gap: 12px; justify-content: center; margin: 24px 0 8px; flex-wrap: wrap; }
+  .countdown .box { background: var(--navy); color: var(--white); border-radius: 10px; padding: 18px 20px; min-width: 84px; text-align: center; }
+  .countdown .box .n { font-size: 30px; font-weight: 800; font-family: var(--font-mono); }
+  .countdown .box .l { font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+  .event-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; }
+  .event-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 60px; }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<main class="container">
+  <div class="page-header" style="text-align:center;">
+    <div class="eyebrow mb-8">ADMISSION CALENDAR</div>
+    <h1 style="font-size:26px;">Admission Test Countdown</h1>
+    <div class="countdown" id="countdown">
+      <div class="box"><div class="n" id="cdDays">--</div><div class="l">Days</div></div>
+      <div class="box"><div class="n" id="cdHours">--</div><div class="l">Hours</div></div>
+      <div class="box"><div class="n" id="cdMins">--</div><div class="l">Minutes</div></div>
+      <div class="box"><div class="n" id="cdSecs">--</div><div class="l">Seconds</div></div>
+    </div>
+    <p class="text-subtle" style="font-size:12px; margin-top:8px;">Bangladesh Standard Time (Asia/Dhaka)</p>
+  </div>
+
+  <h2 style="font-size:18px; margin-bottom:14px;">Key dates</h2>
+  <div class="event-list" id="eventList"></div>
+</main>
+
+<div id="footer-mount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="shared.js"></script>
+<script>
+  renderNavbar("events");
+  renderFooter();
+
+  // PLACEHOLDER DATA — replace with GET /api/events (admin-managed, per spec).
+  // Target event date shown here is illustrative only.
+  const DEMO_EVENTS = [
+    { title: "Application Opens", date: "2026-09-01T00:00:00+06:00", status: "upcoming" },
+    { title: "Application Deadline", date: "2026-10-05T23:59:00+06:00", status: "upcoming" },
+    { title: "Admit Card Release", date: "2026-10-20T00:00:00+06:00", status: "upcoming" },
+    { title: "Admission Test", date: "2026-11-07T10:00:00+06:00", status: "upcoming", isCountdownTarget: true },
+    { title: "Result Publication", date: "2026-11-25T00:00:00+06:00", status: "upcoming" },
+  ];
+
+  const target = DEMO_EVENTS.find((e) => e.isCountdownTarget) || DEMO_EVENTS[0];
+  const targetMs = new Date(target.date).getTime();
+
+  function tickCountdown() {
+    const remaining = targetMs - Date.now();
+    if (remaining <= 0) {
+      document.getElementById("countdown").innerHTML = `<p class="text-muted">This event has passed.</p>`;
+      return;
+    }
+    const sec = Math.floor(remaining / 1000);
+    document.getElementById("cdDays").textContent = Math.floor(sec / 86400);
+    document.getElementById("cdHours").textContent = String(Math.floor((sec % 86400) / 3600)).padStart(2, "0");
+    document.getElementById("cdMins").textContent = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+    document.getElementById("cdSecs").textContent = String(sec % 60).padStart(2, "0");
+  }
+  tickCountdown();
+  setInterval(tickCountdown, 1000);
+
+  document.getElementById("eventList").innerHTML = DEMO_EVENTS.map(
+    (e) => `
+    <div class="card event-row">
+      <div>
+        <div style="font-weight:600; font-size:14px;">${e.title}</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${new Date(e.date).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Dhaka" })} (Dhaka time)</div>
+      </div>
+      <span class="badge badge-accent">${e.status}</span>
+    </div>`
+  ).join("");
+</script>
+</body>
+</html>

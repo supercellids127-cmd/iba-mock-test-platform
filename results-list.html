@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your Attempts — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .page-header { padding: 44px 0 28px; }
+  .page-header h1 { font-size: 28px; margin-bottom: 6px; }
+  .attempt-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; flex-wrap: wrap; }
+  .attempt-row .meta h3 { font-size: 15px; margin-bottom: 4px; }
+  .attempt-row .meta p { font-size: 13px; color: var(--text-muted); margin: 0; }
+  .attempt-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 60px; }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<main class="container">
+  <div class="page-header">
+    <h1>Your Attempts</h1>
+    <p class="text-muted" style="font-size:14px;">All the mock tests you've taken so far.</p>
+  </div>
+  <div id="list" class="attempt-list">
+    <div class="state-block"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>
+</main>
+
+<div id="footer-mount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="scoring.js"></script>
+<script src="api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const session = await requireStudent();
+  if (!session) return;
+
+  renderNavbar();
+  renderFooter();
+
+  const listEl = document.getElementById("list");
+
+  try {
+    const attempts = (await Api.listMyAttempts()).filter((a) => a.status === "SUBMITTED");
+
+    if (attempts.length === 0) {
+      listEl.innerHTML = `
+        <div class="state-block card">
+          <h3>No attempts yet</h3>
+          <p>Take your first mock test to see your results here.</p>
+          <a href="mock-tests.html" class="btn btn-primary">Browse mock tests</a>
+        </div>`;
+      return;
+    }
+
+    const tests = await Api.listTests();
+    const testsById = new Map(tests.map((t) => [t.id, t]));
+
+    listEl.innerHTML = attempts
+      .map((a) => {
+        const test = testsById.get(a.test_id);
+        const r = a.result;
+        return `
+        <div class="card card-hover attempt-row">
+          <div class="meta">
+            <h3>${escapeHtml(test ? test.title : a.test_id)}</h3>
+            <p>Submitted ${formatDateTime(a.submitted_at)}</p>
+          </div>
+          <div class="flex items-center gap-16">
+            <div style="text-align:right;">
+              <div style="font-weight:700; font-size:16px;">${r.total_score} / ${r.total_questions}</div>
+              <div style="font-size:12px; color:var(--text-muted);">${r.total_percentage}%</div>
+            </div>
+            <a href="results.html?attemptId=${encodeURIComponent(a.id)}" class="btn btn-secondary">View</a>
+          </div>
+        </div>`;
+      })
+      .join("");
+  } catch (err) {
+    listEl.innerHTML = `<div class="state-block card"><h3>Failed to load attempts</h3><p>${escapeHtml(err.message)}</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>

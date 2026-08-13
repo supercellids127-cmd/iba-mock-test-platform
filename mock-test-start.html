@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Start Mock Test — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .start-wrap { padding: 48px 0 70px; max-width: 640px; margin: 0 auto; }
+  .start-wrap h1 { font-size: 26px; margin-bottom: 8px; }
+  .start-wrap .desc { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+
+  .breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+  .breakdown .cell { padding: 16px; text-align: center; }
+  .breakdown .cell .n { font-size: 22px; font-weight: 800; }
+  .breakdown .cell .l { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .rules { margin: 24px 0; }
+  .rules li { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<main class="container">
+  <div class="start-wrap" id="content">
+    <div class="state-block"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>
+</main>
+
+<div id="footer-mount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="scoring.js"></script>
+<script src="api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  renderNavbar("mock-tests");
+  renderFooter();
+
+  const params = new URLSearchParams(location.search);
+  const testId = params.get("testId");
+  const contentEl = document.getElementById("content");
+
+  async function load() {
+    if (!testId) {
+      contentEl.innerHTML = `<div class="state-block card"><h3>No test specified</h3><a href="mock-tests.html" class="btn btn-secondary">Back to mock tests</a></div>`;
+      return;
+    }
+    try {
+      const test = await Api.getTest(testId);
+      const questions = await Api.getTestQuestions(testId);
+      const s = sectionBreakdownFromQuestions(questions);
+      const total = questions.length;
+
+      contentEl.innerHTML = `
+        <div class="eyebrow mb-8">TEST ${test.test_number}</div>
+        <h1>${escapeHtml(test.title)}</h1>
+        <p class="desc">${escapeHtml(test.description)}</p>
+
+        <div class="card">
+          <div class="flex justify-between items-center">
+            <div>
+              <div style="font-size:13px; color:var(--text-muted);">Duration</div>
+              <div style="font-size:20px; font-weight:700;">${test.duration_minutes} minutes</div>
+            </div>
+            <div>
+              <div style="font-size:13px; color:var(--text-muted);">Total Questions</div>
+              <div style="font-size:20px; font-weight:700;">${total}</div>
+            </div>
+          </div>
+
+          <div class="breakdown">
+            <div class="cell badge-accent" style="background:#EFF6FF; border-radius:8px;">
+              <div class="n">${s.ENGLISH.count}</div><div class="l">English</div>
+            </div>
+            <div class="cell" style="background:#F0FDF4; border-radius:8px;">
+              <div class="n">${s.MATHEMATICS.count}</div><div class="l">Mathematics</div>
+            </div>
+            <div class="cell" style="background:#FFFBEB; border-radius:8px;">
+              <div class="n">${s.ANALYTICAL.count}</div><div class="l">Analytical</div>
+            </div>
+          </div>
+        </div>
+
+        <ul class="rules">
+          <li>The timer starts as soon as you begin and cannot be paused.</li>
+          <li>You can navigate freely between questions and change answers before submitting.</li>
+          <li>The test auto-submits when time runs out.</li>
+          <li>You'll see a detailed score and topic-wise analysis immediately after submitting.</li>
+        </ul>
+
+        <button class="btn btn-primary btn-lg btn-block" id="startBtn" ${total === 0 ? "disabled" : ""}>
+          ${total === 0 ? "No questions yet" : "Start test"}
+        </button>
+      `;
+
+      const startBtn = document.getElementById("startBtn");
+      if (total === 0) return;
+
+      startBtn.addEventListener("click", async () => {
+        const user = await requireStudent();
+        if (!user) return;
+        startBtn.disabled = true;
+        startBtn.textContent = "Starting…";
+        try {
+          const attempt = await Api.startAttempt(testId);
+          window.location.href = `mock-test-take.html?attemptId=${encodeURIComponent(attempt.id)}`;
+        } catch (err) {
+          showToast(err.message, "error");
+          startBtn.disabled = false;
+          startBtn.textContent = "Start test";
+        }
+      });
+    } catch (err) {
+      contentEl.innerHTML = `<div class="state-block card"><h3>Failed to load test</h3><p>${escapeHtml(err.message)}</p></div>`;
+    }
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

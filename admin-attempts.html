@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attempts — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .admin-topbar { background: var(--navy); color: var(--white); padding: 14px 0; }
+  .admin-topbar-inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .admin-topbar a.brand { color: var(--white); font-weight: 800; font-size: 15px; text-decoration: none; }
+  .admin-topbar .tabs { display: flex; gap: 4px; }
+  .admin-topbar .tabs a { color: #CBD5E1; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 6px; text-decoration: none; }
+  .admin-topbar .tabs a.active, .admin-topbar .tabs a:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+  .admin-topbar .out { color: #FCA5A5; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+  .page-header { padding: 32px 0 20px; }
+  .page-header h1 { font-size: 22px; }
+  .page-header p { font-size: 13px; color: var(--text-muted); margin: 4px 0 0; }
+
+  .filters { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filters select, .filters input { max-width: 240px; }
+
+  .attempt-table { width: 100%; border-collapse: collapse; }
+  .attempt-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .attempt-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13.5px; white-space: nowrap; }
+  .attempt-table tr:last-child td { border-bottom: none; }
+  .attempt-table .name { font-weight: 600; }
+  .attempt-table .id-cell { color: var(--text-muted); font-family: monospace; font-size: 12.5px; }
+  .score-cell { font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="admin-topbar">
+  <div class="admin-topbar-inner">
+    <a href="admin-dashboard.html" class="brand">IBA Admin</a>
+    <div class="tabs">
+      <a href="admin-dashboard.html">Mock Tests</a>
+      <a href="admin-students.html">Students</a>
+      <a href="admin-attempts.html" class="active">Attempts</a>
+    </div>
+    <div class="flex items-center gap-16">
+      <a href="index.html" style="color:#CBD5E1; font-size:13px; text-decoration:none;">View site</a>
+      <a href="#" class="out" id="signOutLink">Sign out</a>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <div class="page-header">
+    <h1>Attempts</h1>
+    <p>Every attempt across every mock test, most recent first.</p>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="searchInput" placeholder="Search by student name or ID…" />
+    <select id="statusFilter">
+      <option value="">All statuses</option>
+      <option value="SUBMITTED">Submitted</option>
+      <option value="IN_PROGRESS">In progress</option>
+    </select>
+    <select id="testFilter">
+      <option value="">All tests</option>
+    </select>
+  </div>
+
+  <div class="card" style="padding:0; overflow-x:auto;">
+    <table class="attempt-table">
+      <thead>
+        <tr><th>Student</th><th>Test</th><th>Status</th><th>Score</th><th>Started</th><th>Submitted</th></tr>
+      </thead>
+      <tbody id="attemptRows">
+        <tr><td colspan="6"><div class="spinner" style="margin:20px auto;"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="api.js"></script>
+<script src="admin-api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const profile = await requireAdmin();
+  if (!profile) return;
+
+  document.getElementById("signOutLink").addEventListener("click", (e) => { e.preventDefault(); signOut(); });
+
+  let attempts = [];
+
+  async function loadAll() {
+    const tbody = document.getElementById("attemptRows");
+    tbody.innerHTML = `<tr><td colspan="6"><div class="spinner" style="margin:20px auto;"></div></td></tr>`;
+    try {
+      attempts = await AdminApi.listAllAttempts();
+
+      const testFilter = document.getElementById("testFilter");
+      const seen = new Set();
+      attempts.forEach((a) => {
+        const title = a.mock_tests && a.mock_tests.title;
+        if (title && !seen.has(title)) {
+          seen.add(title);
+          const opt = document.createElement("option");
+          opt.value = title;
+          opt.textContent = title;
+          testFilter.appendChild(opt);
+        }
+      });
+
+      renderRows();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted); font-size:13px;">${escapeHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  function renderRows() {
+    const tbody = document.getElementById("attemptRows");
+    const term = document.getElementById("searchInput").value.toLowerCase();
+    const status = document.getElementById("statusFilter").value;
+    const testTitle = document.getElementById("testFilter").value;
+
+    const filtered = attempts.filter((a) => {
+      const p = a.profiles || {};
+      const matchesTerm = !term || (p.name || "").toLowerCase().includes(term) || (p.student_id || "").toLowerCase().includes(term);
+      const matchesStatus = !status || a.status === status;
+      const matchesTest = !testTitle || (a.mock_tests && a.mock_tests.title) === testTitle;
+      return matchesTerm && matchesStatus && matchesTest;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-muted); font-size:13px;">No attempts found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered
+      .map((a) => {
+        const p = a.profiles || {};
+        const t = a.mock_tests || {};
+        const result = a.result || null;
+        const scoreText = result
+          ? `${result.total_score}/${result.total_questions} (${result.total_percentage}%)`
+          : "—";
+        return `
+        <tr>
+          <td><span class="name">${escapeHtml(p.name || "—")}</span><br/><span class="id-cell">${escapeHtml(p.student_id || "")}</span></td>
+          <td>${escapeHtml(t.title || "—")}</td>
+          <td><span class="badge ${a.status === "SUBMITTED" ? "badge-success" : "badge-warning"}">${a.status === "SUBMITTED" ? "Submitted" : "In progress"}</span></td>
+          <td class="score-cell">${scoreText}</td>
+          <td>${formatDateTime(a.started_at)}</td>
+          <td>${a.submitted_at ? formatDateTime(a.submitted_at) : "—"}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  document.getElementById("searchInput").addEventListener("input", renderRows);
+  document.getElementById("statusFilter").addEventListener("change", renderRows);
+  document.getElementById("testFilter").addEventListener("change", renderRows);
+
+  loadAll();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log in — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .login-wrap {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .login-card { width: 100%; max-width: 380px; }
+  .login-card h1 { font-size: 22px; margin-bottom: 6px; }
+  .login-card p.sub { font-size: 14px; color: var(--text-muted); margin: 0 0 28px; }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<div class="login-wrap">
+  <div class="card login-card">
+    <h1>Log in</h1>
+    <p class="sub">Use your Student ID and password to continue.</p>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="studentId">Student ID / Username</label>
+        <input type="text" id="studentId" name="studentId" placeholder="e.g. IBA34-2201" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+      </div>
+      <div id="loginError" class="field-error hidden mb-16"></div>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">Log in</button>
+    </form>
+
+    <p class="text-subtle mt-24" style="font-size:13px;">
+      Don't have an account yet? Ask your admin to create one for you.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="shared.js"></script>
+<script>
+  renderNavbar();
+
+  // Students log in with a student_id + password, but Supabase Auth needs an
+  // email — so we map student_id -> a synthetic, never-emailed address. The
+  // same convention is used when admins create student accounts.
+  function studentIdToEmail(studentId) {
+    return studentId.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") + "@students.ibamock.local";
+  }
+
+  (async function redirectIfLoggedIn() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) window.location.href = "dashboard.html";
+  })();
+
+  const form = document.getElementById("loginForm");
+  const errorEl = document.getElementById("loginError");
+  const btn = document.getElementById("loginBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.classList.add("hidden");
+
+    const studentId = document.getElementById("studentId").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!studentId || !password) {
+      errorEl.textContent = "Please fill in both fields.";
+      errorEl.classList.remove("hidden");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Logging in…";
+
+    const { error } = await sb.auth.signInWithPassword({
+      email: studentIdToEmail(studentId),
+      password,
+    });
+
+    if (error) {
+      errorEl.textContent = "Incorrect Student ID or password.";
+      errorEl.classList.remove("hidden");
+      btn.disabled = false;
+      btn.textContent = "Log in";
+      return;
+    }
+
+    showToast("Logged in successfully.", "success");
+    setTimeout(() => (window.location.href = "dashboard.html"), 300);
+  });
+</script>
+</body>
+</html>

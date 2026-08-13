@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IBA DU Mock Test Platform — Prepare. Practice. Perform.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="description" content="Practice for the IBA DU admission test with realistic mock tests, detailed performance analysis, and personalized recommendations." />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .hero {
+    padding: 76px 0 64px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    max-width: 700px;
+    margin: 0 auto 18px;
+  }
+  .hero p {
+    font-size: 17px;
+    color: var(--text-muted);
+    max-width: 540px;
+    margin: 0 auto 32px;
+    line-height: 1.6;
+  }
+  .hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 56px 0;
+  }
+  .stat-cell {
+    background: var(--white);
+    padding: 28px 16px;
+    text-align: center;
+  }
+  .stat-cell .num { font-size: 28px; font-weight: 800; color: var(--navy); }
+  .stat-cell .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  @media (max-width: 700px) {
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .section-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 24px 0 64px;
+  }
+  .section-card {
+    padding: 28px 22px;
+    text-align: left;
+  }
+  .section-card .sec-num {
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .section-card h3 { font-size: 19px; margin: 10px 0 6px; }
+  .section-card p { font-size: 14px; color: var(--text-muted); margin: 0; }
+  @media (max-width: 700px) {
+    .section-grid { grid-template-columns: 1fr; }
+  }
+
+  .feature-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 64px;
+  }
+  .feature-item { padding: 22px 0; border-top: 1px solid var(--border); }
+  .feature-item h4 { font-size: 15px; margin-bottom: 6px; }
+  .feature-item p { font-size: 14px; color: var(--text-muted); margin: 0; }
+  @media (max-width: 700px) {
+    .feature-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="navbar-mount"></div>
+
+<main class="container">
+  <section class="hero">
+    <div class="eyebrow mb-16">IBA DU ADMISSION PREP</div>
+    <h1>Prepare. Practice. Perform.</h1>
+    <p>Practice for the IBA DU admission test with realistic mock tests, detailed performance analysis, and personalized recommendations.</p>
+    <div class="hero-actions">
+      <a href="mock-tests.html" class="btn btn-primary btn-lg">Start a mock test</a>
+      <a href="mock-tests.html" class="btn btn-secondary btn-lg">Explore mock tests</a>
+    </div>
+  </section>
+
+  <section class="stat-grid">
+    <div class="stat-cell"><div class="num">50+</div><div class="label">Mock Tests</div></div>
+    <div class="stat-cell"><div class="num">70</div><div class="label">Questions per Test</div></div>
+    <div class="stat-cell"><div class="num">3</div><div class="label">Core Sections</div></div>
+    <div class="stat-cell"><div class="num">Detailed</div><div class="label">Performance Analysis</div></div>
+  </section>
+
+  <section>
+    <h2 style="font-size:22px; margin-bottom:4px;">Three sections, fully simulated</h2>
+    <p class="text-muted" style="font-size:14px; margin-top:0;">Every full test mirrors the real exam structure exactly.</p>
+    <div class="section-grid">
+      <div class="card card-hover section-card">
+        <div class="sec-num">Section 1</div>
+        <h3>English</h3>
+        <p>30 questions covering grammar, vocabulary, sentence correction, and reading comprehension.</p>
+      </div>
+      <div class="card card-hover section-card">
+        <div class="sec-num">Section 2</div>
+        <h3>Mathematics</h3>
+        <p>25 questions across arithmetic, algebra, geometry, percentage, and more.</p>
+      </div>
+      <div class="card card-hover section-card">
+        <div class="sec-num">Section 3</div>
+        <h3>Analytical</h3>
+        <p>15 questions testing logical reasoning, sequences, and data interpretation.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="feature-row">
+      <div class="feature-item">
+        <h4>Realistic practice</h4>
+        <p>Full-length timed tests structured exactly like the real admission exam.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Detailed analysis</h4>
+        <p>Section and topic-level breakdowns after every attempt.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Topic-wise weakness detection</h4>
+        <p>See exactly which topics need more revision before your next attempt.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Performance tracking</h4>
+        <p>Watch your score and accuracy improve across attempts over time.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="footer-mount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="shared.js"></script>
+<script>
+  renderNavbar("home");
+  renderFooter();
+</script>
+</body>
+</html>

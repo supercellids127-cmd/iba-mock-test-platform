@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard — IBA DU Mock Test Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="main.css" />
+<style>
+  .admin-topbar {
+    background: var(--navy); color: var(--white); padding: 14px 0;
+  }
+  .admin-topbar-inner { max-width: 1120px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .admin-topbar a.brand { color: var(--white); font-weight: 800; font-size: 15px; text-decoration: none; }
+  .admin-topbar .tabs { display: flex; gap: 4px; }
+  .admin-topbar .tabs a {
+    color: #CBD5E1; font-size: 13px; font-weight: 600; padding: 7px 12px;
+    border-radius: 6px; text-decoration: none;
+  }
+  .admin-topbar .tabs a.active, .admin-topbar .tabs a:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+  .admin-topbar .out { color: #FCA5A5; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+  .page-header { padding: 32px 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .page-header h1 { font-size: 22px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
+  .stat-card { padding: 16px; }
+  .stat-card .n { font-size: 22px; font-weight: 800; }
+  .stat-card .l { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  @media (max-width: 700px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+
+  .test-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 60px; }
+  .test-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; flex-wrap: wrap; }
+  .test-row .meta h3 { font-size: 15px; margin-bottom: 4px; }
+  .test-row .meta p { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; max-width: 460px; }
+  .test-row .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .test-row .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+  .modal-box { background: var(--white); border-radius: var(--radius); padding: 28px; max-width: 480px; width: 100%; margin: auto; }
+  .modal-box h3 { font-size: 17px; margin-bottom: 18px; }
+  .modal-box .field { margin-bottom: 14px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+  .toggle-row .t { font-size: 14px; font-weight: 600; }
+  .toggle-row .d { font-size: 12px; color: var(--text-muted); }
+  .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider { position: absolute; cursor: pointer; inset: 0; background: #CBD5E1; border-radius: 22px; transition: 0.15s; }
+  .switch .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.15s; }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(18px); }
+</style>
+</head>
+<body>
+
+<div class="admin-topbar">
+  <div class="admin-topbar-inner">
+    <a href="admin-dashboard.html" class="brand">IBA Admin</a>
+    <div class="tabs">
+      <a href="admin-dashboard.html" class="active">Mock Tests</a>
+      <a href="admin-students.html">Students</a>
+      <a href="admin-attempts.html">Attempts</a>
+    </div>
+    <div class="flex items-center gap-16">
+      <a href="index.html" style="color:#CBD5E1; font-size:13px; text-decoration:none;">View site</a>
+      <a href="#" class="out" id="signOutLink">Sign out</a>
+    </div>
+  </div>
+</div>
+
+<main class="container">
+  <div class="page-header">
+    <h1>Mock Tests</h1>
+    <button class="btn btn-primary" id="newTestBtn">+ New mock test</button>
+  </div>
+
+  <div class="stat-row" id="statRow">
+    <div class="card stat-card"><div class="n" id="statTotal">—</div><div class="l">Total tests</div></div>
+    <div class="card stat-card"><div class="n" id="statPublished">—</div><div class="l">Published</div></div>
+    <div class="card stat-card"><div class="n" id="statQuestions">—</div><div class="l">Total questions</div></div>
+    <div class="card stat-card"><div class="n" id="statStudents">—</div><div class="l">Students</div></div>
+  </div>
+
+  <div id="testList" class="test-list">
+    <div class="state-block"><div class="spinner" style="margin:0 auto;"></div></div>
+  </div>
+</main>
+
+<div id="modalMount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-client.js"></script>
+<script src="api.js"></script>
+<script src="admin-api.js"></script>
+<script src="shared.js"></script>
+<script>
+(async function () {
+  const profile = await requireAdmin();
+  if (!profile) return;
+
+  document.getElementById("signOutLink").addEventListener("click", (e) => { e.preventDefault(); signOut(); });
+
+  const listEl = document.getElementById("testList");
+  let tests = [];
+  let questionCounts = {};
+
+  async function loadAll() {
+    listEl.innerHTML = `<div class="state-block"><div class="spinner" style="margin:0 auto;"></div></div>`;
+    try {
+      tests = await AdminApi.listAllTests();
+      const counts = await Promise.all(
+        tests.map((t) => AdminApi.listQuestions(t.id).then((qs) => qs.length).catch(() => 0))
+      );
+      questionCounts = {};
+      tests.forEach((t, i) => (questionCounts[t.id] = counts[i]));
+
+      let students = [];
+      try { students = await AdminApi.listStudents(); } catch (e) {}
+
+      document.getElementById("statTotal").textContent = tests.length;
+      document.getElementById("statPublished").textContent = tests.filter((t) => t.published).length;
+      document.getElementById("statQuestions").textContent = counts.reduce((a, b) => a + b, 0);
+      document.getElementById("statStudents").textContent = students.length;
+
+      renderList();
+    } catch (err) {
+      listEl.innerHTML = `<div class="state-block card"><h3>Failed to load</h3><p>${escapeHtml(err.message)}</p></div>`;
+    }
+  }
+
+  function renderList() {
+    if (tests.length === 0) {
+      listEl.innerHTML = `<div class="state-block card"><h3>No mock tests yet</h3><p>Create your first mock test to get started.</p></div>`;
+      return;
+    }
+    listEl.innerHTML = tests
+      .map(
+        (t) => `
+      <div class="card test-row" data-id="${t.id}">
+        <div class="meta">
+          <h3>${escapeHtml(t.title)}</h3>
+          <p>${escapeHtml(t.description || "")}</p>
+          <div class="tags">
+            <span class="badge badge-neutral">Test ${t.test_number}</span>
+            <span class="badge badge-neutral">${t.duration_minutes} min</span>
+            <span class="badge badge-accent">${questionCounts[t.id] || 0} questions</span>
+            <span class="badge ${t.published ? "badge-success" : "badge-warning"}">${t.published ? "Published" : "Draft"}</span>
+            <span class="badge badge-neutral">${t.is_public ? "Public" : "Restricted"}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <a href="admin-questions.html?testId=${encodeURIComponent(t.id)}" class="btn btn-secondary">Questions</a>
+          <a href="admin-access.html?testId=${encodeURIComponent(t.id)}" class="btn btn-secondary">Access</a>
+          <button class="btn btn-secondary edit-btn">Edit</button>
+          <button class="btn ${t.published ? "btn-secondary" : "btn-primary"} publish-btn">${t.published ? "Unpublish" : "Publish"}</button>
+          <button class="btn btn-ghost delete-btn" style="color:var(--error);">Delete</button>
+        </div>
+      </div>`
+      )
+      .join("");
+
+    listEl.querySelectorAll(".test-row").forEach((row) => {
+      const id = row.dataset.id;
+      const test = tests.find((t) => t.id === id);
+
+      row.querySelector(".edit-btn").addEventListener("click", () => openTestModal(test));
+
+      row.querySelector(".publish-btn").addEventListener("click", async (e) => {
+        const btn = e.target;
+        btn.disabled = true;
+        try {
+          await AdminApi.setPublished(id, !test.published);
+          showToast(test.published ? "Test unpublished." : "Test published.", "success");
+          await loadAll();
+        } catch (err) {
+          showToast(err.message, "error");
+          btn.disabled = false;
+        }
+      });
+
+      row.querySelector(".delete-btn").addEventListener("click", async () => {
+        if (!confirm(`Delete "${test.title}"? This also deletes all its questions and attempts. This cannot be undone.`)) return;
+        try {
+          await AdminApi.deleteTest(id);
+          showToast("Test deleted.", "success");
+          await loadAll();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    });
+  }
+
+  function openTestModal(test) {
+    const isEdit = !!test;
+    const mount = document.getElementById("modalMount");
+    mount.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+          <h3>${isEdit ? "Edit mock test" : "New mock test"}</h3>
+          <div class="field">
+            <label>Title</label>
+            <input type="text" id="mTitle" value="${isEdit ? escapeHtml(test.title) : ""}" placeholder="IBA DU Full Mock Test 05" />
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <textarea id="mDesc" rows="3" placeholder="A full-length simulation...">${isEdit ? escapeHtml(test.description || "") : ""}</textarea>
+          </div>
+          <div class="flex gap-8">
+            <div class="field" style="flex:1;">
+              <label>Test number</label>
+              <input type="number" id="mNumber" value="${isEdit ? test.test_number : (tests.length + 1)}" min="1" />
+            </div>
+            <div class="field" style="flex:1;">
+              <label>Duration (minutes)</label>
+              <input type="number" id="mDuration" value="${isEdit ? test.duration_minutes : 75}" min="1" />
+            </div>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="t">Public access</div>
+              <div class="d">Off = only students you grant access to can take it</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="mPublic" ${isEdit ? (test.is_public ? "checked" : "") : "checked"} />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="flex gap-8" style="margin-top:20px;">
+            <button class="btn btn-secondary btn-block" id="mCancel">Cancel</button>
+            <button class="btn btn-primary btn-block" id="mSave">${isEdit ? "Save changes" : "Create test"}</button>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById("mCancel").addEventListener("click", () => (mount.innerHTML = ""));
+
+    document.getElementById("mSave").addEventListener("click", async () => {
+      const title = document.getElementById("mTitle").value.trim();
+      const description = document.getElementById("mDesc").value.trim();
+      const test_number = parseInt(document.getElementById("mNumber").value, 10) || 1;
+      const duration_minutes = parseInt(document.getElementById("mDuration").value, 10) || 75;
+      const is_public = document.getElementById("mPublic").checked;
+
+      if (!title) {
+        showToast("Title is required.", "error");
+        return;
+      }
+
+      const saveBtn = document.getElementById("mSave");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving…";
+
+      try {
+        if (isEdit) {
+          await AdminApi.updateTest(test.id, { title, description, test_number, duration_minutes, is_public });
+          showToast("Test updated.", "success");
+        } else {
+          const created = await AdminApi.createTest({ title, description, test_number, duration_minutes, is_public });
+          showToast("Test created. Now add questions.", "success");
+          mount.innerHTML = "";
+          window.location.href = `admin-questions.html?testId=${encodeURIComponent(created.id)}`;
+          return;
+        }
+        mount.innerHTML = "";
+        await loadAll();
+      } catch (err) {
+        showToast(err.message, "error");
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? "Save changes" : "Create test";
+      }
+    });
+  }
+
+  document.getElementById("newTestBtn").addEventListener("click", () => openTestModal(null));
+
+  loadAll();
+})();
+</script>
+</body>
+</html>
