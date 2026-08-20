@@ -55,8 +55,6 @@ async function renderNavbar(activePage) {
   const links = [
     { href: "mock-tests.html", label: "Mock Tests", key: "mock-tests" },
     { href: "events.html", label: "Events", key: "events" },
-    { href: "routine.html", label: "Routine", key: "routine" },
-    { href: "promotions.html", label: "Promotions", key: "promotions" },
     { href: "about.html", label: "About", key: "about" },
   ];
 
@@ -108,7 +106,7 @@ function renderFooter() {
   mount.innerHTML = `
     <footer class="site-footer">
       <div class="container">
-        <span>IBA DU Mock Test Platform — demo build</span>
+        <span>IBA DU Mock Test Platform</span>
         <span>Not affiliated with the Institute of Business Administration, University of Dhaka · <a href="admin-login.html" style="text-decoration:underline;">Admin</a></span>
       </div>
     </footer>
